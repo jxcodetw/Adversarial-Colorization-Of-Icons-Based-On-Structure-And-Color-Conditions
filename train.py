@@ -15,8 +15,8 @@ from dataset import IconDataset
 # argparse
 parser = ArgumentParser()
 parser.add_argument('--dataset', type=str, required=True)
-parser.add_argument('--lrG', type=float, default=1e-4)
-parser.add_argument('--lrD', type=float, default=1e-4)
+parser.add_argument('--lrG', type=float, default=5e-5)
+parser.add_argument('--lrD', type=float, default=2e-4)
 parser.add_argument('--epochs', type=int, default=2000)
 parser.add_argument('--batch_size', type=int, default=64)
 parser.add_argument('--resolution', type=int, default=128)
@@ -67,12 +67,12 @@ Dc = Discriminator(3+1).to(device)
 
 if args.dummy_input: # debug purpose
 	BATCH_SIZE = 16
-	s1 = torch.randn(BATCH_SIZE, 3, 128, 128).to(device)
-	contour = torch.randn(BATCH_SIZE, 1, 128, 128).to(device)
+	s1 = torch.randn(BATCH_SIZE, 3, args.resolution, args.resolution).to(device)
+	contour = torch.randn(BATCH_SIZE, 1, args.resolution, args.resolution).to(device)
 	fake = G(s1, contour)
 	print('fake.shape', fake.shape)
-	ds_out = Ds(torch.cat([fake, s1]))
-	dc_out = Dc(torch.cat([fake, contour]))
+	ds_out = Ds(torch.cat([fake, s1], dim=1))
+	dc_out = Dc(torch.cat([fake, contour], dim=1))
 	print('Ds_out.shape', ds_out.shape)
 	print('Dc_out.shape', dc_out.shape)
 	sys.exit(0)

@@ -12,27 +12,36 @@ class Interpolate2D(nn.Module):
 	def forward(self, x):
 		return F.interpolate(x, scale_factor=self.sf, mode=self.mode)
 
+class Flatten(nn.Module):
+		def forward(self, input):
+			return input.view(input.size(0), -1)
+
 class ResidulBlock(nn.Module):
-	def __init__(self, inc, outc, sample='down', norm=True):
+	def __init__(self, inc, outc, sample='none'):
 		super(ResidulBlock, self).__init__()
 		self.conv1 = spectral_norm(nn.Conv2d(inc, outc, 3, 1, 1))
 		self.conv2 = spectral_norm(nn.Conv2d(outc, outc, 3, 1, 1))
 		self.conv_sc = spectral_norm(nn.Conv2d(inc, outc, 1, 1, 0)) if inc != outc else False
-			
-		if norm:
-			self.n1 = nn.BatchNorm2d(inc)
-			self.n2 = nn.BatchNorm2d(outc)
+		
+		if sample == 'up':
+			self.sample = Interpolate2D(scale_factor=2)
 		else:
-			self.n1 = lambda x: x
-			self.n2 = lambda x: x
+			self.sample = None
+
+		self.bn1 = nn.BatchNorm2d(inc)
+		self.bn2 = nn.BatchNorm2d(outc)
 		
 		self.act = nn.LeakyReLU(0.2)
 		
 	def forward(self, x):
-		h = self.act(self.n1(x))
+		h = self.act(self.bn1(x))
+
+		if self.sample:
+			h = self.sample(h)
+			x = self.sample(x)
 		
 		h = self.conv1(h)
-		h = self.act(self.n2(h))
+		h = self.act(self.bn2(h))
 		h = self.conv2(h)
 		
 		if self.conv_sc:
@@ -49,53 +58,44 @@ class Generator(nn.Module):
 		self.style_encoder = nn.Sequential(
 			spectral_norm(nn.Conv2d(ch_style, base_dim * 1, 3, 1, 1)),
 			nn.BatchNorm2d(base_dim * 1),
-			nn.ReLU(inplace=True),
+			nn.LeakyReLU(0.2, inplace=True),
 			nn.AvgPool2d(2),
 			spectral_norm(nn.Conv2d(base_dim * 1, base_dim * 2, 3, 1, 1)),
 			nn.BatchNorm2d(base_dim * 2),
-			nn.ReLU(inplace=True),
+			nn.LeakyReLU(0.2, inplace=True),
 			nn.AvgPool2d(2),
 			spectral_norm(nn.Conv2d(base_dim * 2, base_dim * 4, 3, 1, 1)),
 			nn.BatchNorm2d(base_dim * 4),
-			nn.ReLU(inplace=True),
+			nn.LeakyReLU(0.2, inplace=True),
 			nn.AvgPool2d(2),
 		)
 
 		self.content_encoder = nn.Sequential(
 			spectral_norm(nn.Conv2d(ch_content, base_dim * 1, 3, 1, 1)),
 			nn.BatchNorm2d(base_dim * 1),
-			nn.ReLU(inplace=True),
+			nn.LeakyReLU(0.2, inplace=True),
 			nn.AvgPool2d(2),
 			spectral_norm(nn.Conv2d(base_dim * 1, base_dim * 2, 3, 1, 1)),
 			nn.BatchNorm2d(base_dim * 2),
-			nn.ReLU(inplace=True),
+			nn.LeakyReLU(0.2, inplace=True),
 			nn.AvgPool2d(2),
 			spectral_norm(nn.Conv2d(base_dim * 2, base_dim * 4, 3, 1, 1)),
 			nn.BatchNorm2d(base_dim * 4),
-			nn.ReLU(inplace=True),
+			nn.LeakyReLU(0.2, inplace=True),
 			nn.AvgPool2d(2),
 		)
 
 		self.decoder = nn.Sequential(
-			spectral_norm(nn.Conv2d(base_dim * 8, base_dim * 8, 3, 1, 1)),
-			ResidulBlock(base_dim * 8, base_dim * 8),
-			ResidulBlock(base_dim * 8, base_dim * 8),
-			ResidulBlock(base_dim * 8, base_dim * 8),
-			ResidulBlock(base_dim * 8, base_dim * 8),
-			nn.BatchNorm2d(base_dim * 8),
-			nn.ReLU(inplace=True),
 			spectral_norm(nn.Conv2d(base_dim * 8, base_dim * 4, 3, 1, 1)),
-			nn.BatchNorm2d(base_dim * 4),
-			nn.ReLU(inplace=True),
-			Interpolate2D(scale_factor=2),
-			spectral_norm(nn.Conv2d(base_dim * 4, base_dim * 2, 3, 1, 1)),
-			nn.BatchNorm2d(base_dim * 2),
-			nn.ReLU(inplace=True),
-			Interpolate2D(scale_factor=2),
-			spectral_norm(nn.Conv2d(base_dim * 2, base_dim * 1, 3, 1, 1)),
+			ResidulBlock(base_dim * 4, base_dim * 4),
+			ResidulBlock(base_dim * 4, base_dim * 4),
+			ResidulBlock(base_dim * 4, base_dim * 4),
+			ResidulBlock(base_dim * 4, base_dim * 4),
+			ResidulBlock(base_dim * 4, base_dim * 2, sample='up'),
+			ResidulBlock(base_dim * 2, base_dim * 1, sample='up'),
+			ResidulBlock(base_dim * 1, base_dim * 1, sample='up'),
 			nn.BatchNorm2d(base_dim * 1),
-			nn.ReLU(inplace=True),
-			Interpolate2D(scale_factor=2),
+			nn.LeakyReLU(0.2, inplace=True),
 			spectral_norm(nn.Conv2d(base_dim * 1, ch_output, 3, 1, 1)),
 			nn.Tanh(),
 		)
@@ -112,23 +112,15 @@ class Discriminator(nn.Module):
 		super(Discriminator, self).__init__()
 		base_dim = 64
 		self.net = nn.Sequential(
-			spectral_norm(nn.Conv2d(ch_input, base_dim * 1, 3)),
-			nn.BatchNorm2d(base_dim * 1),
-			nn.ReLU(inplace=True),
-			nn.AvgPool2d(2),
-			spectral_norm(nn.Conv2d(base_dim * 1, base_dim * 2, 3)),
-			nn.BatchNorm2d(base_dim * 2),
-			nn.ReLU(inplace=True),
-			nn.AvgPool2d(2),
-			spectral_norm(nn.Conv2d(base_dim * 2, base_dim * 4, 3)),
-			nn.BatchNorm2d(base_dim * 4),
-			nn.ReLU(inplace=True),
-			nn.AvgPool2d(2),
-			spectral_norm(nn.Conv2d(base_dim * 4, base_dim * 8, 3)),
-			nn.BatchNorm2d(base_dim * 8),
-			nn.ReLU(inplace=True),
-			nn.AvgPool2d(2),
-			spectral_norm(nn.Conv2d(base_dim * 8, 1, 3)),
+			spectral_norm(nn.Conv2d(ch_input, base_dim * 1, 3, 2, 1)),
+			nn.LeakyReLU(0.2, inplace=True),
+			spectral_norm(nn.Conv2d(base_dim * 1, base_dim * 2, 3, 2, 1)),
+			nn.LeakyReLU(0.2, inplace=True),
+			spectral_norm(nn.Conv2d(base_dim * 2, base_dim * 4, 3, 2, 1)),
+			nn.LeakyReLU(0.2, inplace=True),
+			spectral_norm(nn.Conv2d(base_dim * 4, base_dim * 8, 3, 1, 1)),
+			nn.LeakyReLU(0.2, inplace=True),
+			spectral_norm(nn.Conv2d(base_dim * 8, 1, 3, 1, 1)),
 		)
 
 	def forward(self, x):
