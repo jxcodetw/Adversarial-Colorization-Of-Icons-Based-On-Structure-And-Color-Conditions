@@ -50,5 +50,4 @@ python train.py --dataset /path/to/dataset
 
 ## Dataset
 
-preprocessed_data:
-https://drive.google.com/file/d/1B8GjpBPpIxpAEy7cf8xpmA_ESy3CQXLh/view?usp=sharing
+preprocessed data: https://drive.google.com/file/d/1B8GjpBPpIxpAEy7cf8xpmA_ESy3CQXLh/view?usp=sharing
