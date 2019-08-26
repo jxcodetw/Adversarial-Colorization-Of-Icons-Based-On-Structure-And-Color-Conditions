@@ -55,8 +55,11 @@ python train.py --dataset /path/to/dataset
 
 ## Dataset
 
-preprocessed data: https://drive.google.com/file/d/1B8GjpBPpIxpAEy7cf8xpmA_ESy3CQXLh/view?usp=sharing
+Preprocessed data: https://drive.google.com/file/d/1B8GjpBPpIxpAEy7cf8xpmA_ESy3CQXLh/view?usp=sharing
 
 ## GUI
-(with icon dataset and pretrain weights)
-https://drive.google.com/file/d/1ckhFl6Pmx6ltnYd9-geeFQU1z5F3uW-L/view?usp=sharing
+Download: https://drive.google.com/file/d/1ckhFl6Pmx6ltnYd9-geeFQU1z5F3uW-L/view?usp=sharing  
+The above link include the icon dataset and pretrain weights. 
+
+Click the image for the full video demo.
+[![](demo.gif)](https://www.youtube.com/watch?v=6UiOvKHXg84)
