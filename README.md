@@ -54,6 +54,7 @@ python train.py --dataset /path/to/dataset
 ```
 
 ## Dataset
+Raw data: https://drive.google.com/open?id=1qtfA_fOCVzU8bigJut1LYKOOlTI20f9d
 
 Preprocessed data: https://drive.google.com/file/d/1B8GjpBPpIxpAEy7cf8xpmA_ESy3CQXLh/view?usp=sharing
 
